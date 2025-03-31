@@ -1,15 +1,13 @@
 import tkinter as tk # tkinter imports
 import vlc # plays audio
 import requests # necessary to get the metadata of radio stations
-import pyvolume # custom library to change system volume
-from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume # necessary for current volume access
-from comtypes import cast, POINTER # necessary for current volume access
+from time import sleep
 
 class StreamingPlayer:
     def __init__(self, root):
         self.root = root
         self.root.title("Bootleg Radio Station")
-        self.root.geometry("600x300") 
+        self.root.geometry("600x300")
 
         # vlc player variables
         self.instance = vlc.Instance()
@@ -59,15 +57,9 @@ class StreamingPlayer:
         self.volume_label = tk.Label(self.right_frame, text="Volume:")
         self.volume_label.pack(anchor="w", pady=5)
 
-        # get the current system volume so that audio slider can start at that value
-        devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, 7, None)
-        volume = cast(interface, POINTER(IAudioEndpointVolume))
-        current_volume = volume.GetMasterVolumeLevelScalar() * 100
-
         # volume slider so user can change volume of audio
-        self.volume_slider = tk.Scale(self.right_frame, from_=0, to=100, orient="horizontal")
-        self.volume_slider.set(current_volume)  #  
+        self.volume_slider = tk.Scale(self.right_frame, from_=0, to=500, orient="horizontal")
+        self.volume_slider.set(100)  #  default at 100% volume
         self.volume_slider.pack(fill="x", padx=5)
 
         # only update volume when slider is released to eliminate issues with lagg 
@@ -106,7 +98,7 @@ class StreamingPlayer:
         self.stop_button.config(state=tk.DISABLED)
 
     def set_volume(self, volume): # set volume based on slider value
-        pyvolume.custom(percent=int(volume))
+        self.player.audio_set_volume(volume)
 
     def on_select(self, e): # function to be called on selection of an item from the recently played box
         selection = self.recently_box.curselection() # get value thats actually selected
@@ -124,6 +116,7 @@ class StreamingPlayer:
             if response.status_code == 200:
                 icy_headers = response.headers
                 metadata = {
+                    "Name": icy_headers.get("icy-name", "N/A" ),
                     "Description": icy_headers.get("icy-description", "N/A"),
                     "Genre": icy_headers.get("icy-genre", "N/A"),
                     "URL": icy_headers.get("icy-url", "N/A"),
